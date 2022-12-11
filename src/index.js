@@ -25,6 +25,22 @@ function checksExistsUserAccount(request, response, next) {
   return next();
 }
 
+function checksExistsTodo(request, response, next) {
+  const { id } = request.params;
+  const { user } = request;
+  const todo = user.todos.find(todo => todo.id === id);
+
+  if (!todo) {
+    return response.status(404).send({
+      error: 'ToDo not found.'
+    });
+  }
+
+  request.todo = todo;
+
+  return next();
+}
+
 app.post('/users', (request, response) => {
   const { name, username } = request.body;
 
@@ -70,41 +86,35 @@ app.post('/todos', checksExistsUserAccount, (request, response) => {
   return response.status(201).json(todo);
 });
 
-app.put('/todos/:id', checksExistsUserAccount, (request, response) => {
-  const { id } = request.params;
+app.put('/todos/:id', checksExistsUserAccount, checksExistsTodo, (request, response) => {
   const { title, deadline } = request.body;
-  const { user } = request;
+  const { todo } = request;
 
-  const todo = user.todos.find(todo => todo.id === id);
+  if (title) {
+    todo.title = title;
+  }
 
-  todo.title = title;
-  todo.deadline = deadline;
+  if (deadline) {
+    todo.deadline = new Date(deadline);
+  }
 
   return response.status(200).json(todo);
 });
 
-app.patch('/todos/:id/done', checksExistsUserAccount, (request, response) => {
-  const { id } = request.params;
-  const { user } = request;
-
-  const todo = user.todos.find(todo => todo.id === id);
+app.patch('/todos/:id/done', checksExistsUserAccount, checksExistsTodo, (request, response) => {
+  const { todo } = request;
 
   todo.done = true;
 
   return response.status(200).json(todo);
 });
 
-app.delete('/todos/:id', checksExistsUserAccount, (request, response) => {
-  const { id } = request.params;
-  const { user } = request;
+app.delete('/todos/:id', checksExistsUserAccount, checksExistsTodo, (request, response) => {
+  const { user, todo } = request;
 
-  const todo = user.todos.find(todo => todo.id === id);
+  user.todos.splice(user.todos.indexOf(todo), 1);
 
-  if (todo) {
-    user.todos.splice(user.todos.indexOf(todo), 1);
-  }
-
-  return response.status(200).json(user.todos);
+  return response.status(204).send();
 });
 
 module.exports = app;
